@@ -1,0 +1,23 @@
+mutapr:
+  program: "modify"
+  path: "/opt/mutapr"
+  help: '--help'
+  api_cmds:
+    --gcc: build
+    --good: test
+    --bad: test
+  args:
+    --mut: 0.01
+    --seed: 1
+  sections:
+    coverage:
+      program: "coverage"
+      args:
+        --fixfun: ""
+        --mt-cov: ""
+    fault:
+      program: "faultLoc"
+      args:
+        --fl: "Ochiai"
+  sanity_check: false
+  fault_loc: true
