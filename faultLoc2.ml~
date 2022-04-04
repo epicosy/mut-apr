@@ -1,0 +1,325 @@
+
+
+open Printf
+
+
+(* we copy all debugging output to a file and to stdout *)
+let debug_out = ref stdout 
+let debug fmt = 
+  let k result = begin
+    output_string !debug_out result ; 
+    output_string stdout result ; 
+    flush stdout ; 
+  end in
+  Printf.kprintf k fmt 
+  
+(********************************************)
+
+let my_int_of_string str =
+  try 
+    let res = ref 0 in 
+    Scanf.sscanf str " %i" (fun i -> res := i) ;
+    !res
+  with _ -> begin 
+    if String.lowercase str = "true" then 1
+    else if String.lowercase str = "false" then 0 
+    else failwith ("cannot convert to an integer: " ^ str)
+  end  
+  
+(*****************************************)
+  let hashtbl_keys h = 
+Hashtbl.fold (fun key _ l -> key :: l) h []
+
+(********************************)
+let hashtbl_values h = 
+  Hashtbl.fold (fun _ value l -> value :: l) h []
+
+(*****************************)
+
+ (* let hashtbl_lst h = 
+      Hashtbl.fold (fun key value lst -> (key, value) :: lst) h [] *)
+
+(*********************************)
+let hashtbl2list hash =
+  Hashtbl.fold
+    (fun key value init -> key :: value :: init)
+    hash
+    []
+    
+(***********************************)
+(*convert hashtbl into list*)
+let hashtbl2assoc_list h = 
+Hashtbl.fold (fun key value l -> (key, value) :: l) h []
+
+(************************************)
+ (*function that compare two values in a list*)
+  let compare_fun (_,k1) (_,k2) = compare k1 k2 
+
+(*********************************************) 
+ 
+let main () =
+   
+  let filenames = ref [] in 
+  let passTests = ref 1 in 
+  let failTests = ref 1 in
+  
+  
+  let usageMsg = "Prototype No-Specification Bug-Fixer\n" in 
+  
+  let argDescr = [
+    "--pass", Arg.Set_int passTests, " number of passing tests";
+    "--fail", Arg.Set_int failTests, " number of failing tests";
+    
+  ] in 
+  
+  let handleArg str = filenames := str :: !filenames in 
+  Arg.parse (Arg.align argDescr) handleArg usageMsg ; 
+    
+  let debug_str = "faultLoc.txt" in 
+  debug_out := open_out debug_str ; 
+  at_exit (fun () -> close_out !debug_out) ; 
+   
+  let pt = passTests in 
+  let ft = failTests in 
+  let fail_t = float_of_int !failTests in
+  let pass_t = float_of_int !passTests in 
+  let tot_tests = fail_t +. pass_t in 
+  let gpath_any = ref false in 
+  let npath_any = ref false in   
+  let n = ref 0 in 
+ (**************************************************) 
+ 
+ let gpath_ht = Hashtbl.create 255 in 
+ let npath_ht = Hashtbl.create 255 in 
+ let fullgpath_ht = Hashtbl.create 255 in 
+ let fullnpath_ht = Hashtbl.create 255 in
+ let ep = ref 0.0 in
+ let ef = ref 0.0 in
+ let gpath_ex = Str.regexp "Gpath*" in
+ let npath_ex = Str.regexp "Npath*" in
+ let n =  0 in 
+ 
+  
+				(*iterate throug files Gpath and Npath*)
+		List.iter ( fun fname ->
+								(*read Gpath and create hashtble for all Gpaths*)
+								if (Str.string_match gpath_ex fname 0) then begin
+								  (*debug "It is a good path file: %s \n" fname;*)
+								 
+									  	let gpath_str = fname in 
+										(try
+											let gpath_fin = open_in gpath_str in 
+											while true do
+												let line = input_line gpath_fin in
+												let i = my_int_of_string line in 
+												gpath_any := true ;
+												(*Create unique list: if item i is alrady in the has*)
+												if not (Hashtbl.mem gpath_ht i) then begin 
+													Hashtbl.add gpath_ht i 0.0
+											   	end;
+										 					     
+											done ;
+											
+									   											
+										with _ -> ()
+										);
+																		 
+									Hashtbl.iter (fun k v -> 
+														if not (Hashtbl.mem fullgpath_ht k) then begin
+															Hashtbl.add fullgpath_ht k 1.0
+														end else 
+															let va = Hashtbl.find fullgpath_ht k in 
+															ep := va +. 1.0 ; 
+															Hashtbl.replace fullgpath_ht k !ep
+																											
+									 	 		   )gpath_ht;
+									 										
+									(*debug "%s is read and hashtbl is created \n" gpath_str; 
+									let gpath_ht_size = Hashtbl.length gpath_ht in  
+									debug "%s hashtble size %d \n" gpath_str gpath_ht_size ; 
+									Hashtbl.iter (debug "%d\t%f\n") gpath_ht; *)
+									
+									(**************************************)
+									 (*check if stmID in the hashtbles 
+									if (Hashtbl.mem gpath_ht stmtID) then 
+										ep := !ep +. 1.0 ;
+										debug " stmtId: %d , ep : %f \n" stmtID !ep; *)
+								end
+					 
+								(*read Npath and create hashtble for all Npaths*)
+								else if (Str.string_match npath_ex fname 0) then begin
+									(*debug "It is a bad path file: %s \n " fname;*)
+									let npath_str = fname in 
+									let npath_any = ref false in 
+									
+									(try
+										let npath_fin = open_in npath_str in 
+										while true do
+											let line = input_line npath_fin in
+											let i = my_int_of_string line in 
+											npath_any := true ;
+											(*if item i is alrady in the has*)
+											if not (Hashtbl.mem npath_ht i) then begin 
+												Hashtbl.add npath_ht i 0.0
+											end; 
+										done ;
+									with _ -> ()
+									) ; 
+									
+									Hashtbl.iter (fun k v -> 
+														if not (Hashtbl.mem fullnpath_ht k) then begin
+															Hashtbl.add fullnpath_ht k 1.0
+														end else 
+															let va = Hashtbl.find fullnpath_ht k in 
+															ef := va +. 1.0 ; 
+															Hashtbl.replace fullnpath_ht k !ef
+																											
+									 	 		   )npath_ht;
+									 	 		   
+									(*debug "%s is read and hashtbl is created \n" npath_str; 
+									let npath_ht_size = Hashtbl.length npath_ht in   
+									debug "%s hashtble size %d \n" npath_str npath_ht_size ; 
+									Hashtbl.iter (debug "%d\t%f\n") npath_ht;*)
+								
+								(**************************************)
+									 (*check if stmID in the hashtbles 
+									if (Hashtbl.mem npath_ht stmtID) then 
+										ef := !ef +. 1.0 ;
+										debug " stmtId: %d , ef : %f \n" stmtID !ef; *)
+								end;					
+							
+							(****************************************) 
+						
+						Hashtbl.clear gpath_ht ;
+						Hashtbl.clear npath_ht
+													 	 
+						)!filenames ;  
+						
+ 
+ 
+									(*debug "***************************************************" ;
+									let fullgpath_ht_size = Hashtbl.length fullgpath_ht in 
+									debug "\n fullgood hashtble size %d \n" fullgpath_ht_size ; 
+									Hashtbl.iter (debug "%d\t%f\n") fullgpath_ht;
+									debug "**************************************************";
+									
+									
+									debug "***************************************************" ;
+									let fullnpath_ht_size = Hashtbl.length fullnpath_ht in 
+									debug "\n fullbad hashtble size %d \n" fullnpath_ht_size ; 
+									Hashtbl.iter (debug "%d\t%f\n") fullnpath_ht;
+									debug "**************************************************";*)
+							
+							
+									
+  (*read fullpath and create hashtble for fullpath *)
+ let path_str = "fullpath"  in  (*cat .goopath path > path  *)
+  let path_any = ref false in 
+  let path_ht = Hashtbl.create 255 in 
+  (try
+      let path_fin = open_in path_str in 
+      while true do
+        let line = input_line path_fin in
+        let i = my_int_of_string line in 
+        npath_any := true ;
+         (*if item i is alrady in the has*)
+        if not (Hashtbl.mem path_ht i ) then begin 
+             Hashtbl.add path_ht i 0.0;
+        end ;      
+      done ;
+   with _ -> ()
+  ) ; 
+  (*debug "%s is read and hashtbl is created \n" path_str; 
+  let path_ht_size = Hashtbl.length path_ht in   
+  debug "fullpath hashtble size %d \n" path_ht_size ; 
+   Hashtbl.iter (printf "%d\t%f\n") path_ht; *)
+ 
+ 
+  (*List of keys *)
+  let sus_ht= Hashtbl.create 225 in 
+  (*debug "flaot of int %f" fail_t ;*)
+  let m = ref 0 in
+  let keys_lst = hashtbl_keys path_ht in
+  (*debug "print list of keys \n"  ; *)
+
+  
+  
+ List.iter ( fun k -> 
+                let exe_pass = ref 0.0 in
+                let exe_fail = ref 0.0 in
+                let stmtID = List.nth keys_lst !m in
+                m := !m + 1 ; 
+				if Hashtbl.mem fullgpath_ht stmtID then begin
+				    let vp = Hashtbl.find fullgpath_ht stmtID in 
+				    exe_pass := vp ; 
+				    (*debug "exe_pass for stmt: %d is %f \n " stmtID !exe_pass;*)
+				end; 
+				
+				if Hashtbl.mem fullnpath_ht stmtID then begin
+				       let vf= Hashtbl.find fullnpath_ht stmtID in
+				       exe_fail := vf;
+				       (*debug "exe_fail for stmt: %d is %f \n " stmtID !exe_fail;*)
+				end;
+				
+						
+				(* compute sus score *)	
+				let sus = ref 0.0 in
+				if !exe_fail = 0.0 then 
+					sus := 0.0 
+			    else
+				  sus := !exe_fail /. (fail_t +. !exe_pass) ;   (** we implement Jaccard, we only use the stmtID with sus > 0  **)
+				  (*debug "sus for stmt %d is %f \n " stmtID !sus;*)
+				  if !sus <> 0.0 then
+				   if not (Hashtbl.mem sus_ht stmtID) then
+				     Hashtbl.add sus_ht stmtID !sus ;
+						()
+            ) keys_lst ; 
+         
+       
+  
+
+   (*Hashtbl.iter (debug "%d\t%f\n") sus_ht; *)
+   
+ 
+  (*debug "print list ordered \n"  ; *)
+  
+ let suslst = List.rev (List.sort compare_fun (hashtbl2assoc_list sus_ht)) in
+ List.iter
+  (fun (key, value) ->
+     let value = Hashtbl.find sus_ht key in
+      debug "%d \t" key; 
+      debug " %f \n" value;
+       
+  ) suslst ; 
+  
+        
+;;
+
+main ();;
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  

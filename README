@@ -1,0 +1,24 @@
+
+To run FaulLoc. 
+
+1) In the directory where all .ml files (modify, coverage, diff,.. ), I created faultLoc.ml . 
+to compile faultLoc.ml:
+
+ocamlc str.cma -o faultLoc faultLoc.ml
+
+2) to create fault faultLoc.txt in the format to be used by MUT-APR-FL do teh following steps: 
+		
+			a - go in the directory where you have the faulty code and all fiels needed by MUT-APR to repair the faults. This folder should be inside the folder which contains 
+			  all .ml files
+			b - run ./prog-coverage on each test input to create path file
+			c - rename path fiels as they are generated ( e.g., (1) run./prog-coverage passingTestinput which will generate prog.c.path, (2) rename 
+			 the generated file to Gpath1). When you run prog-coverage on passing test, rename generated file as Gpath# (#: anything you want). And when you 
+			 run prog-coverage on failing test, rename generated file as Npath# (#: anything you want).  
+			d - concatenat all Gpath and Npath files to generate one file and name it fullpath. To do so, write the following command:
+				cat Gpath1 Gpath2 Npath1 Npath2 > fullpath
+			e - Then run:
+					../faultLoc --pass NUMPASSTTESTS --fail NUMFAILTESTS GpathNUM GpathNUM NpathNUM NpathNUM fullpath
+					e.g., ../faultLoc --pass 2 --fail 2 Gpath1 Gpath1 Npath1 Npath2 fullpath
+		
+
+
