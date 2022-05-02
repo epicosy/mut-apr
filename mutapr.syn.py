@@ -65,7 +65,7 @@ class MUTAPR(ToolHandler):
             if baseline_path is not None:
                 if best_path is not None:
                     patch = self.get_patch(original=baseline_path, patch=best_path, is_fix=True)
-                    patches[tf][d.name] = patch.change
+                    patches[tf][best_path.name] = patch.change
 
                 if edits_path.exists():
                     for file in edits_path.iterdir():
