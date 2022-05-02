@@ -1,0 +1,19 @@
+mut_apr:
+  program: "modify"
+  path: "/opt/mutapr"
+  help: '--help'
+  args:
+    --mut: 0.01
+    --seed: 1
+  sections:
+    coverage:
+      program: "coverage"
+      args:
+        --fixfun: ""
+        --mt-cov: ""
+    fault:
+      program: "faultLoc"
+      args:
+        --fl: "Ochiai"
+  sanity_check: false
+  fault_loc: true
