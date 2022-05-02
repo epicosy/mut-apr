@@ -48,19 +48,29 @@ class MUTAPR(ToolHandler):
         for tf in target_files:
             patches[tf] = {}
             edits_path = repair_dir / Path(tf).parent / Path(tf).stem
-            #baseline_path = repair_dir / tf + "-baseline.c"
-            baseline_path = working_dir / tf 
-            best_path = repair_dir / tf + "--best.c"
+            baseline_path = None
+            best_path = None
+            # Get original file
+            for path in Path(working_dir).rglob(f'{tf}-baseline.c'):
+                if path.exists():
+                    baseline_path = path
+                    break
 
-            if baseline_path.exists():
-                if best_path.exists():
+            # Find fix file
+            for path in Path(working_dir).rglob(f'{tf}--best.c'):
+                if path.exists():
+                    best_path = path
+                    break
+
+            if baseline_path is not None:
+                if best_path is not None:
                     patch = self.get_patch(original=baseline_path, patch=best_path, is_fix=True)
                     patches[tf][d.name] = patch.change
 
                 if edits_path.exists():
                     for file in edits_path.iterdir():
                         if not file.is_dir() and file.suffix == ".c" and file.stat().st_size > 0:
-                            patch = self.get_patch(original=baseline_path, patch=best_path, is_fix=False)
+                            patch = self.get_patch(original=baseline_path, patch=file, is_fix=False)
                             patches[tf][file.stem] = patch.change
 
         return patches
