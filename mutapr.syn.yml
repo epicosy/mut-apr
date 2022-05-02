@@ -1,7 +1,11 @@
-mut_apr:
+mutapr:
   program: "modify"
   path: "/opt/mutapr"
   help: '--help'
+  api_cmds:
+    --gcc: build
+    --good: test
+    --bad: test
   args:
     --mut: 0.01
     --seed: 1

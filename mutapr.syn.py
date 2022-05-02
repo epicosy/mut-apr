@@ -14,7 +14,7 @@ class MUTAPR(ToolHandler):
     """MUTAPR"""
 
     class Meta:
-        label = 'mut_apr'
+        label = 'mutapr'
         version = '-'
 
     def __init__(self, **kw):
@@ -27,7 +27,8 @@ class MUTAPR(ToolHandler):
     def repair(self, signals: dict, repair_request: RepairRequest) -> RepairCommand:
         # manifest_file = repair_request.working_dir / 'manifest.txt'
         repair_dir = Path(repair_request.working_dir, "repair")
-        target_file = Path(repair_request.manifest[0])
+        manifest_file = next(iter(repair_request.manifest))
+        target_file = Path(manifest_file)
         repair_cwd = repair_dir / target_file.parent / target_file.stem
         repair_dir.mkdir(parents=True, exist_ok=True)
         repair_cwd.mkdir(parents=True, exist_ok=True)
@@ -44,9 +45,23 @@ class MUTAPR(ToolHandler):
         patches = {}
         repair_dir = Path(working_dir, "repair")
 
-        # TODO: Implement this
         for tf in target_files:
             patches[tf] = {}
+            edits_path = repair_dir / Path(tf).parent / Path(tf).stem
+            #baseline_path = repair_dir / tf + "-baseline.c"
+            baseline_path = working_dir / tf 
+            best_path = repair_dir / tf + "--best.c"
+
+            if baseline_path.exists():
+                if best_path.exists():
+                    patch = self.get_patch(original=baseline_path, patch=best_path, is_fix=True)
+                    patches[tf][d.name] = patch.change
+
+                if edits_path.exists():
+                    for file in edits_path.iterdir():
+                        if not file.is_dir() and file.suffix == ".c" and file.stat().st_size > 0:
+                            patch = self.get_patch(original=baseline_path, patch=best_path, is_fix=False)
+                            patches[tf][file.stem] = patch.change
 
         return patches
 
@@ -72,6 +87,7 @@ class MUTAPR(ToolHandler):
                     cmd_cwd=self.configs.path)
 
                 if cmd_data.error:
+                    self.app.log.error(cmd_data.error)
                     continue
 
                 if cmd_data.output and cmd_data.output != '':
@@ -83,10 +99,10 @@ class MUTAPR(ToolHandler):
 
     def coverage(self, signals: dict, coverage_request: CoverageRequest):
         inst_files = self._instrument(coverage_request)
-
+        self.app.log.warning(inst_files)
         if inst_files:
-            signals['compile'] = signals['compile'].replace("__INST_FILES__", ' '.join(inst_files))
-            cmd_data = super().__call__(cmd_data=CommandData(args=signals['compile']))
+            signals['--gcc'] = signals['--gcc'].replace("__INST_FILES__", ' '.join(inst_files))
+            cmd_data = super().__call__(cmd_data=CommandData(args=signals['--gcc']))
 
             if not cmd_data.error:
                 # creates folder for coverage files
@@ -94,27 +110,28 @@ class MUTAPR(ToolHandler):
                 cov_dir.mkdir(parents=True, exist_ok=True)
 
                 # insert placeholders
-                signals['pos_tests'] = signals['pos_tests'].replace('__COV_OUT_DIR__', str(cov_dir))
-                signals['pos_tests'] = signals['pos_tests'].replace('__RENAME_SUFFIX__', '.goodpath')
 
-                super().__call__(cmd_data=CommandData(args=signals['pos_tests']))
+                signals['--good'] = signals['--good'].replace('__COV_OUT_DIR__', str(cov_dir))
+                signals['--good'] = signals['--good'].replace('__RENAME_SUFFIX__', '.goodpath')
 
-                signals['neg_tests'] = signals['neg_tests'].replace('__COV_OUT_DIR__', str(cov_dir))
+                super().__call__(cmd_data=CommandData(args=signals['--good']))
 
-                super().__call__(cmd_data=CommandData(args=signals['neg_tests']))
+                signals['--bad'] = signals['--bad'].replace('__COV_OUT_DIR__', str(cov_dir))
+
+                super().__call__(cmd_data=CommandData(args=signals['--bad']))
 
                 copy_tree(str(cov_dir), str(coverage_request.build_dir))
 
-    def parse_extra(self, extra_args: List[str], signal: Signal) -> str:
+    def parse_extra(self, extra_args: List[str], signal: Signal) -> dict:
         if signal.arg in self.arg_matches:
             args = ' '.join(extra_args)
             path = args.split()[1]
             match = re.search(self.arg_matches[signal.arg], args)
 
             if match:
-                return path + "/" + match.group(0)
+                return {'out_file': path + "/" + match.group(0)}
 
-        return ""
+        return {}
 
 
 def load(nexus):
